@@ -16,25 +16,26 @@ type ValPos = [(Value, [CellPos])] -- Map Value [CellPos]
 type Sudoku = (Int, Int, Matrix)
               
 toValPos :: PosVal -> ValPos
+toValPos pv = do
+  n <- values
+  return (n, map fst $ filter (\(_, vs) -> elem n vs) pv) 
 
 toPosVal :: ValPos -> PosVal
 
 
+
 elimVal :: PosVal -> PosVal
-elimVal = elimSub boxs . elimSub cols . elimSub rows
+elimVal = elimValSub boxsPV . elimValSub colsPV . elimValSub rowsPV
 
-elimSub :: (PosVal -> [PosVal]) -> PosVal -> PosVal
-elimSub f = concat . reduce <$> f
-
-elimPos :: ValPos -> ValPos
-
-eliminate :: PosVal -> PosVal
-eliminate = toPosVal . elimPos . toValPos . elimVal
-
+elimValSub :: (PosVal -> [PosVal]) -> PosVal -> PosVal
+elimValSub f = concat . map reduce . f
 
 
 fixed :: [[a]] -> [a]
 fixed = concat . filter single
+
+isFixedPV :: (CellPos, [Value]) -> Bool
+isFixedPV = single . snd
 
 single :: [a] -> Bool
 single = (==) 1 . length
@@ -47,28 +48,48 @@ delete xs ys
 reduce :: PosVal -> PosVal
 reduce pv = map (\(pos, vs) -> (pos, delete vs fixedVals)) pv
   where
-    fixedVals = fixed $ map snd pv
+    fixedVals = concat $ filter isFixedPV pv >>= return . snd 
 
 
 
-rows :: PosVal -> [PosVal]
-rows = groupBy (\(p1, _) (p2, _) -> isSameRow p1 p2)
+rowsPV :: PosVal -> [PosVal]
+rowsPV = groupBy (\(p1, _) (p2, _) -> isSameRow p1 p2)
   
-cols :: PosVal -> [PosVal]
-cols = groupBy (\(p1, _) (p2, _) -> isSameCol p1 p2)
+colsPV :: PosVal -> [PosVal]
+colsPV = groupBy (\(p1, _) (p2, _) -> isSameCol p1 p2)
 
-boxs :: PosVal -> [PosVal]
-boxs = groupBy (\(p1, _) (p2, _) -> isSameBox p1 p2)
-
--- groupMapBy :: (Ord k) => (k -> k -> Bool) -> Map k a -> [Map k a]
+boxsPV :: PosVal -> [PosVal]
+boxsPV = groupBy (\(p1, _) (p2, _) -> isSameBox p1 p2)
 
 
--- intSqrt :: Num a => a -> a
--- intSqrt n = intSqrt' n 1
---   where
---     intSqrt' n m 
---       | n < m * m = m - 1
---       | otherwise = intSqrt' n (m + 1)
+rowsVP :: ValPos -> [ValPos]
+rowsVP vp = [[(v, ps) | ps <- pss] | (v, pss) <- vps]
+  where
+    vps = map (\(v, ps) -> (v, groupBy isSameRow ps)) vp
+
+colsVP :: ValPos -> [ValPos]
+rowsVP vp = [[(v, ps) | ps <- pss] | (v, pss) <- vps]
+  where
+    vps = map (\(v, ps) -> (v, groupBy isSameCol ps)) vp
+
+boxsVP :: ValPos -> [ValPos]
+rowsVP vp = [[(v, ps) | ps <- pss] | (v, pss) <- vps]
+  where
+    vps = map (\(v, ps) -> (v, groupBy isSameBox ps)) vp
+
+backVPsmall :: ValPos -> (Value, [CellPos])
+backVPsmall vp = 
+
+backVP :: [ValPos] -> ValPos  
+backVP = map backVPsmall
+
+elimPos :: ValPos -> ValPos
+elimPos = backVP . map elimPosTwo . boxsVP . backVP . map elimPosTwo . colsVP . backVP . map elimPosTwo . rowsVP
+
+eliminate :: PosVal -> PosVal
+eliminate = toPosVal . elimPos . toValPos . elimVal
+
+
 
 isSameRow :: CellPos -> CellPos -> Bool
 isSameRow p1 p2 = fst (fst p1) == fst (fst p2) &&
@@ -93,9 +114,13 @@ solve :: Sudoku -> [Matrix]
 solve = map toMatrix . mainSolve . analyze
 
 analyze :: Sudoku -> PosVal
+analyze (row, col, matrix) = map (divide row) matrix
 
 toMatrix :: PosVal -> Matrix
 
+divide :: Int -> [a] -> [[a]]
+divide _ [] = []
+divide n xs = take n xs : divide n (drop n xs)
 
 display :: Matrix -> IO ()
 display = mapM_ (putStrLn . concat . intersperse " " . map show)
