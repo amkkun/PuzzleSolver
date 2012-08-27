@@ -72,15 +72,16 @@ deMorgan (And p q) = And (deMorgan p) (deMorgan q)
 deMorgan (Or p q) = Or (deMorgan p) (deMorgan q)
 deMorgan _ = error "before deMorgan, do elimEquiv and elimImply"
 
-distOr :: Formula -> Formula -- 複雑な論理式だと機能しない
+distOr :: Formula -> Formula
 distOr (Const b) = Const b
 distOr (Var v) = Var v
 distOr (Not p) = Not $ distOr p
 distOr (And p q) = And (distOr p) (distOr q)
-distOr (Or p q) = case (p, q) of
-  (And r s, _) -> And (distOr $ Or r q) (distOr $ Or s q)
-  (_, And r s) -> And (distOr $ Or p r) (distOr $ Or p s)
-  (_, _) -> Or (distOr p) (distOr q)
+distOr (Or p q) = case distOr p of
+  And r s -> And (distOr $ Or r q) (distOr $ Or s q)
+  r -> case distOr q of 
+    And s t -> And (distOr $ Or r s) (distOr $ Or r t)
+    s -> Or r s
 distOr _ = error "before distOr, do deMorgan"
 
 formulaCNF :: Formula -> Formula
