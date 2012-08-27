@@ -18,8 +18,9 @@ type Var = Int
 
 type CNF = [Clause]
 type Clause = [Literal]
-data Literal = A Var | N Var
-
+data Literal = A Var 
+             | N Var
+             deriving (Show, Eq)          
 
 elimEquiv :: Formula -> Formula
 elimEquiv (Const b) = Const b
@@ -71,7 +72,7 @@ deMorgan (And p q) = And (deMorgan p) (deMorgan q)
 deMorgan (Or p q) = Or (deMorgan p) (deMorgan q)
 deMorgan _ = error "before deMorgan, do elimEquiv and elimImply"
 
-distOr :: Formula -> Formula
+distOr :: Formula -> Formula -- 複雑な論理式だと機能しない
 distOr (Const b) = Const b
 distOr (Var v) = Var v
 distOr (Not p) = Not $ distOr p
@@ -85,27 +86,34 @@ distOr _ = error "before distOr, do deMorgan"
 formulaCNF :: Formula -> Formula
 formulaCNF = distOr . elimConst . deMorgan . elimImply . elimEquiv
 
-toLiterals :: Formula -> [Formula]
-toLiterals (Const _) = error "invalid" -- case b of
+toClause :: Formula -> Clause
+toClause (Const _) = error "clause const" -- case b of
   -- True = []
-  -- False = error "toLiterals invalid"
-toLiterals (Var v) = [Var v]
-toLiterals (Not p) = [Not p]
-toLiterals (And _ _) = error "invalid"
-toLiterals (Or p q) = toLiterals p ++ toLiterals q
-toLiterals _ = error "invalid"
+  -- False = error "toClause invalid"
+toClause (Var v) = [A v]
+toClause (Not p) = case p of
+  Var v -> [N v]
+  _ -> error "clause not"
+toClause (And _ _) = error "clause and"
+toClause (Or p q) = toClause p ++ toClause q
+toClause _ = error "clause other"
                      
-toClauses :: Formula -> [[Formula]]
-toClauses (Const _) = [] -- bimyou
-toClauses (Var v) = [[Var v]]
-toClauses (Not p) = [[Not p]]
-toClauses (And p q) = case (p, q) of
-  (Or _ _, r) -> [toLiterals p] ++ toClauses r
-  (r, Or _ _) -> toClauses r ++ [toLiterals p]
-  (_, _) -> toClauses p ++ toClauses q
-toClauses (Or p q) = [toLiterals $ Or p q]  
-toClauses _ = error "invalid"
-    
+toCNF :: Formula -> CNF
+toCNF (Const _) = [] -- bimyou
+toCNF (Var v) = [[A v]]
+toCNF (Not p) = case p of
+  Var v -> [[N v]]
+  _ -> error "iimva"
+toCNF (And p q) = case (p, q) of
+  (Or _ _, r) -> [toClause p] ++ toCNF r
+  (r, Or _ _) -> toCNF r ++ [toClause p]
+  (_, _) -> toCNF p ++ toCNF q
+toCNF (Or p q) = [toClause $ Or p q]  
+toCNF _ = error "invalid"
+
+
+cnf :: Formula -> CNF
+cnf = toCNF . formulaCNF
 -- toCNF :: Formula -> CNF
 -- toCNF (Const b) = []
 -- toCNF (Var v) = A v
