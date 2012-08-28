@@ -1,11 +1,16 @@
 {-# OPTIONS -Wall #-}
+{-# LANGUAGE OverloadedStrings #-}
 
-import Control.Applicative (
-  (<$>)
-  )
+import Data.ByteString (ByteString)
+import qualified Data.ByteString as BS
+import Data.ByteString.Char8 () -- instance だけ読み込む
+import Data.ByteString.Lazy (ByteString)
+import qualified Data.ByteString.Lazy as BL
+
+import Control.Monad.State
 
 data Formula = Const Bool
-             | Var Var
+             | Var VarNum
              | Not Formula
              | And Formula Formula
              | Or Formula Formula
@@ -13,13 +18,13 @@ data Formula = Const Bool
              | Equiv Formula Formula
              deriving (Show, Eq)
                       
-type Var = Int
+type VarNum = Int
 
 
 type CNF = [Clause]
 type Clause = [Literal]
-data Literal = A Var 
-             | N Var
+data Literal = A VarNum 
+             | N VarNum
              deriving (Show, Eq)          
 
 elimEquiv :: Formula -> Formula
@@ -100,30 +105,91 @@ toClause (Or p q) = toClause p ++ toClause q
 toClause _ = error "clause other"
                      
 toCNF :: Formula -> CNF
-toCNF (Const _) = [] -- bimyou
+toCNF (Const b) = case b of
+  True -> []
+  False -> error "toCNF: Const False"
+  -- error "cnf const" -- bimyou
 toCNF (Var v) = [[A v]]
 toCNF (Not p) = case p of
   Var v -> [[N v]]
-  _ -> error "iimva"
+  _ -> error "toCNF: not CNF"
 toCNF (And p q) = case (p, q) of
   (Or _ _, r) -> [toClause p] ++ toCNF r
-  (r, Or _ _) -> toCNF r ++ [toClause p]
+  (r, Or _ _) -> toCNF r ++ [toClause q]
   (_, _) -> toCNF p ++ toCNF q
 toCNF (Or p q) = [toClause $ Or p q]  
-toCNF _ = error "invalid"
+toCNF _ = error "toCNF: not CNF"
 
 
-cnf :: Formula -> CNF
-cnf = toCNF . formulaCNF
--- toCNF :: Formula -> CNF
--- toCNF (Const b) = []
--- toCNF (Var v) = A v
--- toCNF (Not p) = case p of
---   Var v = N v
---   _ = error "not in var igaiha hairanaiyo"
--- toCNF (And p q) = case (p, q) of
---   (Or r s, Or t u) = map (map toCNF) [[r, s], [t, u]]
---   (Or r s, And t u) = [t, u] ++ map toCNF
+allAnd :: [Formula] -> Formula
+allAnd = foldr And (Const True)
+
+allOr :: [Formula] -> Formula
+allOr = foldr Or (Const False)
+
+-- encode :: Formula -> ByteString
+-- encode =  . toCNF . formulaCNF
     
-    
-    
+-- encCNF :: CNF -> ByteString
+-- encCNF = map (map L.show)
+
+
+tseitin :: Formula -> Formula -> State Int Formula
+tseitin (Const b) var = do
+  return $ formulaCNF $ Equiv var (Const b)
+tseitin (Var v) var = do
+  return $ formulaCNF $ Equiv var (Var v)
+tseitin (Not p) var = do
+  new <- newVar
+  p' <- tseitin p new
+  return $ And (formulaCNF $ Equiv var (Not new)) p'
+tseitin (And p q) var = do
+  new1 <- newVar
+  new2 <- newVar
+  p' <- tseitin p new1
+  q' <- tseitin q new2
+  return $ And (And (formulaCNF $ Equiv var (And new1 new2)) p') q'
+tseitin (Or p q) var = do
+  new1 <- newVar
+  new2 <- newVar
+  p' <- tseitin p new1
+  q' <- tseitin q new2
+  return $ And (And (formulaCNF $ Equiv var (Or new1 new2)) p') q'
+tseitin (Imply p q) var = do
+  new1 <- newVar
+  new2 <- newVar
+  p' <- tseitin p new1
+  q' <- tseitin q new2
+  return $ And (And (formulaCNF $ Equiv var (Imply new1 new2)) p') q'
+tseitin (Equiv p q) var = do
+  new1 <- newVar
+  new2 <- newVar
+  p' <- tseitin p new1
+  q' <- tseitin q new2
+  return $ And (And (formulaCNF $ Equiv var (Equiv new1 new2)) p') q'
+  
+newVar :: State Int Formula
+newVar = state $ \x -> (Var $ x + 1, x + 1)
+  
+run :: VarNum -> Formula -> CNF                       
+run maxVarNum formula = toCNF . fst . runState (tseitin formula' (Var next)) $ next 
+  where
+    formula' = elimConst formula
+    next = maxVarNum + 1 
+      
+formula :: Formula
+formula = Or (Equiv (Var 4) (And (Imply (Var 3) (And (Var 6) (Var 7))) (Var 1))) (And (Var 2) (Var 5))
+
+small :: Formula
+small = allOr . map allAnd . divide 2 . map Var $ [1..4]
+
+
+large :: Formula
+large = allOr . map allAnd . divide 20 $ map Var [1..100]
+
+
+divide :: Int -> [a] -> [[a]]
+divide _ [] = []
+divide n xs = left : divide n right
+  where
+    (left, right) = splitAt n xs
