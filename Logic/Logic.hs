@@ -1,12 +1,16 @@
 {-# OPTIONS -Wall #-}
 {-# LANGUAGE OverloadedStrings #-}
 
+module Logic where
+
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import Data.ByteString.Char8 () -- instance だけ読み込む
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as BL
 
+
+import Data.List
 import Control.Monad.State
 
 data Formula = Const Bool
@@ -127,22 +131,34 @@ allAnd = foldr And (Const True)
 allOr :: [Formula] -> Formula
 allOr = foldr Or (Const False)
 
--- encode :: Formula -> ByteString
--- encode =  . toCNF . formulaCNF
-    
--- encCNF :: CNF -> ByteString
--- encCNF = map (map L.show)
+encode :: VarNum -> Formula -> String
+encode n = encCNF . run n    
 
+encode' :: Formula -> String
+encode' = encCNF . toCNF . formulaCNF
+
+encCNF :: CNF -> String
+encCNF = concat . map toa
+
+toa :: Clause -> String
+toa = (++ " 0\n") . concat . intersperse " " . map show . map toNum
+
+toNum :: Literal -> Int
+toNum (A v) = v
+toNum (N v) = negate v
 
 tseitin :: Formula -> Formula -> State Int Formula
 tseitin (Const b) var = do
   return $ formulaCNF $ Equiv var (Const b)
 tseitin (Var v) var = do
   return $ formulaCNF $ Equiv var (Var v)
-tseitin (Not p) var = do
-  new <- newVar
-  p' <- tseitin p new
-  return $ And (formulaCNF $ Equiv var (Not new)) p'
+tseitin (Not p) var = case p of
+  (Const b) -> return $ formulaCNF $ Equiv var (Const $ not b)
+  (Var v) -> return $ formulaCNF $ Equiv var (Not $ Var v)
+  _ -> do
+    new <- newVar
+    p' <- tseitin p new
+    return $ And (formulaCNF $ Equiv var (Not new)) p'
 tseitin (And p q) var = do
   new1 <- newVar
   new2 <- newVar
@@ -172,11 +188,13 @@ newVar :: State Int Formula
 newVar = state $ \x -> (Var $ x + 1, x + 1)
   
 run :: VarNum -> Formula -> CNF                       
-run maxVarNum formula = toCNF . fst . runState (tseitin formula' (Var next)) $ next 
+run maxVarNum formula = toCNF . And (Var next) . fst . runState (tseitin formula' (Var next)) $ next 
   where
     formula' = elimConst formula
     next = maxVarNum + 1 
       
+           
+
 formula :: Formula
 formula = Or (Equiv (Var 4) (And (Imply (Var 3) (And (Var 6) (Var 7))) (Var 1))) (And (Var 2) (Var 5))
 
@@ -185,7 +203,7 @@ small = allOr . map allAnd . divide 2 . map Var $ [1..4]
 
 
 large :: Formula
-large = allOr . map allAnd . divide 20 $ map Var [1..100]
+large = allOr . map allAnd . divide 50 $ map Var [1..100]
 
 
 divide :: Int -> [a] -> [[a]]
@@ -193,3 +211,9 @@ divide _ [] = []
 divide n xs = left : divide n right
   where
     (left, right) = splitAt n xs
+    
+writeTseitin :: IO ()
+writeTseitin = writeFile "tseitin" $ concat ["p cnf 500 3000", encode 100 large]
+
+writeNormal :: IO ()
+writeNormal = writeFile "normal" $ concat ["p cnf 100 3000", encode' large]
