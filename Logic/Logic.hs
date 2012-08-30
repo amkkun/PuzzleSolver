@@ -5,11 +5,14 @@ module Logic
        , allAnd
        , allOr
        , elimUseless
+       , isCNFFormula
        , dimacsTseitin
        , dimacsNormal
        ) where
 
 import Data.List
+import Data.ByteString.Lazy.Char8 (ByteString)
+import qualified Data.ByteString.Lazy.Char8 as C
 import Control.Monad.State
 
 type VarNum = Int
@@ -303,19 +306,19 @@ toNum (A v) = v
 toNum (N v) = negate v
 
 -- # Encode DIMACS format
-dimacsTseitin :: Formula -> String
+dimacsTseitin :: Formula -> ByteString
 dimacsTseitin = toDimacsString . runTseitin 
 
-dimacsNormal :: Formula -> String
+dimacsNormal :: Formula -> ByteString
 dimacsNormal = toDimacsString . toCNF . toCNFFormula
 
-toDimacsString :: CNF -> String
-toDimacsString cnf = concat $ firstLine : map clauseString cnf
+toDimacsString :: CNF -> ByteString
+toDimacsString cnf = C.concat $ firstLine : map clauseString cnf
   where
     clauseNum = length cnf
     varNum = maxVarNumC cnf
-    firstLine = "p cnf " ++ show varNum ++ " " ++ show clauseNum ++ "\n"
+    firstLine = C.pack $ "p cnf " ++ show varNum ++ " " ++ show clauseNum ++ "\n"
       
-clauseString :: Clause -> String
-clauseString = (++ " 0\n") . concat . intersperse " " . map show . map toNum
+clauseString :: Clause -> ByteString
+clauseString = C.pack . (++ " 0\n") . concat . intersperse " " . map show . map toNum
 

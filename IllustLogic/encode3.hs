@@ -7,6 +7,8 @@ import PropLogicCore
 import PropLogicTest
 import Data.List 
 
+import Debug.Trace
+
 data Cell = Cell Int Bool deriving (Show, Eq)
 
 -- (n - sum l - (length l - 1)) 個のものを (length l + 1) つの組にわける
@@ -22,39 +24,20 @@ distribute n size
   | otherwise = [m : d | m <- [0..n], d <- distribute (n - m) (size - 1)]
 
 -- length l + 1 == length d
-    
-    
-
--- line :: Int -> [[Bool]] -> [[Cell]] -- line number -> cellss -> gridss
--- line n = map (\c -> [Grid n i (c !! pred i) | i <- [1..length c]])
-
--- grid :: [[[Bool]]] -> [[[Cell]]]
--- grid c = [line i (c !! pred i) | i <- [1..length c]]
-
--- condition :: Int -> [[Int]] -> [[[Cell]]]
--- condition size = grid . map (constraint size) 
-
--- transpose :: Cell -> Cell
--- transpose (Grid r c cell) = Grid c r cell
-
--- transposeAll :: [[[Grid]]] -> [[[Grid]]]
--- transposeAll = map (map (map Main.transpose))
-
--- toExpr :: [[[Grid]]] -> Expr Grid
--- toExpr = allAnd . map toCnf . map allOr . map (map allAnd) . map (map (map expr))
---   where
---     expr g = Var g
-    
 --
 
 constraint :: Int -> [Int] -> [[Bool]]
 constraint size fs
-  | b < 0 = error ("constraint: " ++ show fs)
-  | otherwise = distribute b (length fs + 1) >>= 
-                return . bools fs' . map (`replicate` False)    
+  | fs == [] = error "constraint: empty list. possible fix -> [0]"
+  | b < 0 = error ("constraint: " ++ show size ++ " < " ++ show fs)
+  | otherwise = do
+      fs' <- distribute b len
+      let fs'' = map (`replicate` False) fs'
+      return $ bools fs'' ts
   where
     b = size - sum fs - (length fs - 1) -- 列の長さ - 連続して塗りつぶす数の合計 - 間の空白の数 = 残りの空白の数
-    fs' = map (`replicate` True) fs
+    len = if fs == [0] then 1 else length fs + 1
+    ts = map (`replicate` True) fs
 
 -- 交互に取る
 mutually :: [a] -> [a] -> [a]
@@ -64,11 +47,17 @@ mutually (x:xs) (y:ys) = x : y : mutually xs ys
 
 -- n個とってきてconcat、n個とってきてconcat…
 takeConcat :: Int -> [[a]] -> [[a]]
-takeConcat _ [] = []
-takeConcat n xss = concat (take n xss) : takeConcat n (drop n xss)
+takeConcat n = map concat . takeRepeat n -- _ [] = []
+-- takeConcat n xss = concat (take n xss) : takeConcat n (drop n xss)
 
+takeRepeat :: Int -> [a] -> [[a]]
+takeRepeat _ [] = []
+takeRepeat n xs = take n xs : takeRepeat n (drop n xs)
+
+-- [[True],[True,True]] [[False],[],[False]] == 
+--   [False,True,False,True,True,False]
 bools :: [[Bool]] -> [[Bool]] -> [Bool]
-bools ts = concat . intersperse [False] . takeConcat 2 . mutually ts
+bools fs = concat . mutually fs . takeConcat 2 . intersperse [False]
 
 
 constNoUE :: Info -> PCNF Int
@@ -80,28 +69,23 @@ constNoUE (Info rows cols) =
  
 row :: Int -> [[Int]] -> [PropForm Int]
 row size conds = zipWith one 
-                 (takeAll size [1..(size * length conds)]) 
+                 (takeRepeat size [1..(size * length conds)]) 
                  (map (constraint size) conds)
 col :: Int -> [[Int]] -> [PropForm Int]
 col size conds = zipWith one 
-                 (transpose $ takeAll size [1..(size * length conds)]) 
+                 (transpose $ takeRepeat size [1..(size * length conds)]) 
                  (map (constraint size) conds)
   
--- transpose :: [[a]] -> [[a]]
--- transpose [] = []
--- transpose [xs] = [[x] | x <- xs]
--- transpose (xs:xss) = zipWith (:) xs (transpose xss)
-
 
 -- one [1,2,3] [[True,False,False],[False,True,True]] == Or (And (Var ) (Or (Var) (Const False))  
 one :: [Int] -> [[Bool]] -> PropForm Int
 one ns = DJ . map three . map (two' ns)
   
 -- two 3 [True, False, True] == [Cell 7 True, Cell 8 False, Cell 9 True] 
-two :: Int -> [Bool] -> [Cell]
-two n bs = zipWith Cell [m..] bs
-  where
-    m = (n - 1) * length bs + 1
+-- two :: Int -> [Bool] -> [Cell]
+-- two n bs = zipWith Cell [m..] bs
+--   where
+--     m = (n - 1) * length bs + 1
 
 two' :: [Int] -> [Bool] -> [Cell]
 two' ns bs = zipWith Cell ns bs
@@ -114,23 +98,15 @@ zipFunc [] _ = []
 zipFunc _ [] = []
 zipFunc (f:fs) (x:xs) = f x : zipFunc fs xs
 
-takeAll :: Int -> [a] -> [[a]]
-takeAll _ [] = []
-takeAll n xs = take n xs : takeAll n (drop n xs)
 -- 
 --
 
---        1 
---       21113
---   2 1 **..*
--- 1 1 1 *.*.*
---   1 2 .*.**
 
-rsize :: Info -> Int
-rsize (Info rows _) = length rows
+-- rsize :: Info -> Int
+-- rsize (Info rows _) = length rows
 
-csize :: Info -> Int 
-csize (Info _ cols) = length cols
+-- csize :: Info -> Int 
+-- csize (Info _ cols) = length cols
 
 toNum :: PCNF Int -> Int -- var -> num
 toNum (A n) = n
@@ -188,27 +164,45 @@ info = Info
        -- , [1,1]
        -- , [0]
        -- ]
-       [ [4]
-       , [1,1,6]
-       , [1,1,4,1]
-       , [1,1,4,1]
-       , [1,1,4,1]
-       , [1,1,3,2]
-       , [1,1,4]
-       , [1,1,2]
-       , [1,1,2]
-       , [1,1,2]
-       , [1,1,2]
-       ]       
-       [ [9]
+       -- [ [4]
+       -- , [1,1,6]
+       -- , [1,1,4,1]
+       -- , [1,1,4,1]
+       -- , [1,1,4,1]
+       -- , [1,1,3,2]
+       -- , [1,1,4]
+       -- , [1,1,2]
+       -- , [1,1,2]
+       -- , [1,1,2]
+       -- , [1,1,2]
+       -- ]       
+       -- [ [9]
+       -- , [0]
+       -- , [9]
+       -- , [0]
+       -- , [5]
+       -- , [7]
+       -- , [10]
+       -- , [5,4]
+       -- , [2,2]
+       -- , [5]
+       -- ]
+       [ [1,1,1,1,1,1] 
+       ]  
+       [ [0]
        , [0]
-       , [9]
        , [0]
-       , [5]
-       , [7]
-       , [10]
-       , [5,4]
-       , [2,2]
-       , [5]
+       , [0]
+       , [0]
+       , [0]
+       , [0]
+       , [0]
+       , [0]
+       , [0]
+       , [0]
+       , [0]
+       , [0]
+       , [0]
+       , [0]
+       , [0]
        ]
-       

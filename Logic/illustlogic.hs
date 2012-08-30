@@ -2,6 +2,7 @@
 
 import Logic
 import Data.List
+import qualified Data.ByteString.Lazy.Char8 as C
 import Control.Applicative ((<$>))
 
 data Info = Info [[Int]] [[Int]]
@@ -42,6 +43,120 @@ info = Info
        , [0]
        ]
 
+midium :: Info
+midium = Info
+         [ [3,3,7,3,4,2]
+         , [3,2,6,2,4,2]
+         , [5,1,5,2,3]
+         , [4,3,1,3]
+         , [3,1,5]
+         
+         , [3,3]
+         , [1,2,1,1,2]
+         , [3,2,3,3,3]
+         , [5,2,2,3,1]
+         , [10,3,8,2]
+           
+         , [1,5,2,2,4,3]
+         , [2,2,2,1,1,2,2,4]
+         , [1,1,1,2,2,2,2,2,4]
+         , [1,2,2,2,2,4,2]
+         , [3,5,1,5,1,1,1]
+           
+         , [2,1,2,1,3]
+         , [2,1,2,1,2,3]
+         , [1,2,1,2,2,3]
+         , [2,1,2,2,1,3,1]
+         , [3,2,2,3,5]
+           
+         , [3,4,3,6]
+         , [4,1,5,6,5]
+         , [3,3,12,1,4,1]
+         , [5,4,8,3,5]
+         , [3,1,2,2,1,1,4,5]
+           
+         , [2,2,2,9,1,3]
+         , [3,1,2,3,5]
+         , [3,2,12,1,5]
+         , [1,2,2,10,2,3,2]
+         , [4,2,1,5,1]
+         ]
+         [ [3,3,1,2,6,2,3]
+         , [6,3,1,1,1,10,1]
+         , [16,11]
+         , [5,3,5,3,2]
+         , [4,5,4,3,1]
+         , [2,2,5,4,3]
+         , [1,2,2,1,3,2]
+         , [1,2,1,6,2]
+         , [1,2,1,1,1,3,1]
+         , [1,1,1,4,3]
+         , [3,1,2,2,2,2,2]
+         , [2,1,4,3,1,2]
+         , [3,2,1,4,4,2]
+         , [4,2,2,2,2,1,2]
+         , [5,1,2,1,2]
+         , [4,2,2,2,4,2]
+         , [1,2,1,4,2,1,2]
+         , [2,1,4,3,1,2]
+         , [2,1,2,2,5,2]
+         , [1,1,1,2,1,2]
+         , [1,2,1,5,1,2]
+         , [1,2,1,3,6]
+         , [2,2,2,2,5]
+         , [5,7,3,1]
+         , [3,10,2,3,2]
+         , [2,4,3,4,12]
+         , [4,2,13]
+         , [5,18,1]
+         , [3,5,3,3,2,3]
+         , [5,3,3,3,4]
+         ]
+
+mid :: Info
+mid = Info
+      [ [1,1]
+      , [1]
+      , [10]
+      , [6,6]
+      , [3,4]
+      , [3,4]
+      , [4,2,1]
+      , [1,2,3,2,1]
+      , [2,1,1,2]
+      , [2,1,1,1,1,2]
+      , [1,1,1,1]
+      , [1,1,7,1,1]
+      , [1,1,1,1,1,1]
+      , [2,3,2,2]
+      , [2,3]
+      , [2,2]
+      , [7,5,6]
+      , [7,5,6]
+      , [6,3,5]
+      , [5,1,1,1,1,1,4]
+      ]
+      [ [3,4,4]
+      , [3,2,1,4]
+      , [6,4,4]
+      , [1,1,6]
+      , [1,2,5]
+      , [2,2,3,3]
+      , [1,1,2,2,1]
+      , [1,1,1,1,1]
+      , [1,1,1,1,1,2,1]
+      , [2,1,1,1,1,3]
+      , [1,1,1,2,4]
+      , [1,3,3]
+      , [1,2,2,1]
+      , [1,2]
+      , [2,3,3,1]
+      , [1,6]
+      , [6,1,4]
+      , [3,2,2,4]
+      , [3,5,4]
+      , [3,4]
+      ]
 info2 :: Info
 info2 = Info
         [ [1,1]
@@ -160,10 +275,10 @@ varMatrix (Info xss yss) = divide (length yss) [1..(length xss * length yss)]
 
 -- # IO
 useTseitin :: Info -> IO ()
-useTseitin = writeFile "qT.dimacs" . dimacsTseitin . constraint 
+useTseitin = C.writeFile "qT.dimacs" . dimacsTseitin . constraint 
 
 useNormal :: Info -> IO ()
-useNormal = writeFile "qN.dimacs" . dimacsNormal . constraint 
+useNormal = C.writeFile "qN.dimacs" . dimacsNormal . constraint 
 
 decode :: FilePath -> Info -> IO ()
 decode filepath (Info rs cs) = do
@@ -174,4 +289,11 @@ decode filepath (Info rs cs) = do
   where       
     ready size = divide size . map (\n -> if n > 0 then True else False)
     display = mapM_ (putStrLn . concat . map (\b -> if b then "#" else " ")) 
-  
+
+-- encode :: FilePath -> IO ()
+-- encode filepath = do
+--   question <- lines <$> readFile filepath
+--   (rsize, 
+
+main :: IO ()
+main = useTseitin mid
