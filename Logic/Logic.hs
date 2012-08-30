@@ -3,11 +3,11 @@
 
 module Logic where
 
-import Data.ByteString (ByteString)
-import qualified Data.ByteString as BS
-import Data.ByteString.Char8 () -- instance だけ読み込む
-import Data.ByteString.Lazy (ByteString)
-import qualified Data.ByteString.Lazy as BL
+-- import Data.ByteString (ByteString)
+-- import qualified Data.ByteString as BS
+-- import Data.ByteString.Char8 () -- instance だけ読み込む
+-- import Data.ByteString.Lazy (ByteString)
+-- import qualified Data.ByteString.Lazy as BL
 
 
 import Data.List
@@ -96,6 +96,21 @@ distOr _ = error "before distOr, do deMorgan"
 formulaCNF :: Formula -> Formula
 formulaCNF = distOr . elimConst . deMorgan . elimImply . elimEquiv
 
+
+isCNF :: Formula -> Bool
+isCNF (Const _) = True
+isCNF (Var _) = True
+isCNF (Not p) = case p of
+  Const _ -> True
+  Var _ -> True
+  _ -> False
+isCNF (And p q) = isCNF p && isCNF q
+isCNF (Or p q) = case (p, q) of
+  (And _ _, _) -> False
+  (_, And _ _) -> False
+  _ -> isCNF p && isCNF q
+isCNF _ = False
+
 toClause :: Formula -> Clause
 toClause (Const _) = error "clause const" -- case b of
   -- True = []
@@ -108,6 +123,7 @@ toClause (And _ _) = error "clause and"
 toClause (Or p q) = toClause p ++ toClause q
 toClause _ = error "clause other"
                      
+-- 
 toCNF :: Formula -> CNF
 toCNF (Const b) = case b of
   True -> []
@@ -159,30 +175,114 @@ tseitin (Not p) var = case p of
     new <- newVar
     p' <- tseitin p new
     return $ And (formulaCNF $ Equiv var (Not new)) p'
-tseitin (And p q) var = do
-  new1 <- newVar
-  new2 <- newVar
-  p' <- tseitin p new1
-  q' <- tseitin q new2
-  return $ And (And (formulaCNF $ Equiv var (And new1 new2)) p') q'
-tseitin (Or p q) var = do
-  new1 <- newVar
-  new2 <- newVar
-  p' <- tseitin p new1
-  q' <- tseitin q new2
-  return $ And (And (formulaCNF $ Equiv var (Or new1 new2)) p') q'
-tseitin (Imply p q) var = do
-  new1 <- newVar
-  new2 <- newVar
-  p' <- tseitin p new1
-  q' <- tseitin q new2
-  return $ And (And (formulaCNF $ Equiv var (Imply new1 new2)) p') q'
-tseitin (Equiv p q) var = do
-  new1 <- newVar
-  new2 <- newVar
-  p' <- tseitin p new1
-  q' <- tseitin q new2
-  return $ And (And (formulaCNF $ Equiv var (Equiv new1 new2)) p') q'
+tseitin (And p q) var = case (p, q) of
+    (Const _, Const _) -> return $ formulaCNF $ Equiv var (And p q)
+    (Const _, Var _) -> return $ formulaCNF $ Equiv var (And p q)
+    (Const _, _) -> do
+      new <- newVar
+      q' <- tseitin q new
+      return $ And (formulaCNF $ Equiv var (And p new)) q'
+    (Var _, Const _) -> return $ formulaCNF $ Equiv var (And p q)
+    (Var _, Var _) -> return $ formulaCNF $ Equiv var (And p q)
+    (Var _, _) -> do
+      new <- newVar
+      q' <- tseitin q new
+      return $ And (formulaCNF $ Equiv var (And p new)) q'
+    (_, Const _) -> do
+      new <- newVar
+      p' <- tseitin p new
+      return $ And (formulaCNF $ Equiv var (And new q)) p'
+    (_, Var _) -> do
+      new <- newVar
+      p' <- tseitin p new
+      return $ And (formulaCNF $ Equiv var (And new q)) p'
+    (_, _) -> do
+      newp <- newVar
+      newq <- newVar
+      p' <- tseitin p newp
+      q' <- tseitin q newq
+      return $ And (And (formulaCNF $ Equiv var (And newp newq)) p') q'
+tseitin (Or p q) var = case (p, q) of
+    (Const _, Const _) -> return $ formulaCNF $ Equiv var (Or p q)
+    (Const _, Var _) -> return $ formulaCNF $ Equiv var (Or p q)
+    (Const _, _) -> do
+      new <- newVar
+      q' <- tseitin q new
+      return $ And (formulaCNF $ Equiv var (Or p new)) q'
+    (Var _, Const _) -> return $ formulaCNF $ Equiv var (Or p q)
+    (Var _, Var _) -> return $ formulaCNF $ Equiv var (Or p q)
+    (Var _, _) -> do
+      new <- newVar
+      q' <- tseitin q new
+      return $ And (formulaCNF $ Equiv var (Or p new)) q'
+    (_, Const _) -> do
+      new <- newVar
+      p' <- tseitin p new
+      return $ And (formulaCNF $ Equiv var (Or new q)) p'
+    (_, Var _) -> do
+      new <- newVar
+      p' <- tseitin p new
+      return $ And (formulaCNF $ Equiv var (Or new q)) p'
+    (_, _) -> do
+      newp <- newVar
+      newq <- newVar
+      p' <- tseitin p newp
+      q' <- tseitin q newq
+      return $ And (And (formulaCNF $ Equiv var (Or newp newq)) p') q'
+tseitin (Imply p q) var = case (p, q) of
+    (Const _, Const _) -> return $ formulaCNF $ Equiv var (Imply p q)
+    (Const _, Var _) -> return $ formulaCNF $ Equiv var (Imply p q)
+    (Const _, _) -> do
+      new <- newVar
+      q' <- tseitin q new
+      return $ And (formulaCNF $ Equiv var (Imply p new)) q'
+    (Var _, Const _) -> return $ formulaCNF $ Equiv var (Imply p q)
+    (Var _, Var _) -> return $ formulaCNF $ Equiv var (Imply p q)
+    (Var _, _) -> do
+      new <- newVar
+      q' <- tseitin q new
+      return $ And (formulaCNF $ Equiv var (Imply p new)) q'
+    (_, Const _) -> do
+      new <- newVar
+      p' <- tseitin p new
+      return $ And (formulaCNF $ Equiv var (Imply new q)) p'
+    (_, Var _) -> do
+      new <- newVar
+      p' <- tseitin p new
+      return $ And (formulaCNF $ Equiv var (Imply new q)) p'
+    (_, _) -> do
+      newp <- newVar
+      newq <- newVar
+      p' <- tseitin p newp
+      q' <- tseitin q newq
+      return $ And (And (formulaCNF $ Equiv var (Imply newp newq)) p') q'
+tseitin (Equiv p q) var = case (p, q) of
+    (Const _, Const _) -> return $ formulaCNF $ Equiv var (Equiv p q)
+    (Const _, Var _) -> return $ formulaCNF $ Equiv var (Equiv p q)
+    (Const _, _) -> do
+      new <- newVar
+      q' <- tseitin q new
+      return $ And (formulaCNF $ Equiv var (Equiv p new)) q'
+    (Var _, Const _) -> return $ formulaCNF $ Equiv var (Equiv p q)
+    (Var _, Var _) -> return $ formulaCNF $ Equiv var (Equiv p q)
+    (Var _, _) -> do
+      new <- newVar
+      q' <- tseitin q new
+      return $ And (formulaCNF $ Equiv var (Equiv p new)) q'
+    (_, Const _) -> do
+      new <- newVar
+      p' <- tseitin p new
+      return $ And (formulaCNF $ Equiv var (Equiv new q)) p'
+    (_, Var _) -> do
+      new <- newVar
+      p' <- tseitin p new
+      return $ And (formulaCNF $ Equiv var (Equiv new q)) p'
+    (_, _) -> do
+      newp <- newVar
+      newq <- newVar
+      p' <- tseitin p newp
+      q' <- tseitin q newq
+      return $ And (And (formulaCNF $ Equiv var (Equiv newp newq)) p') q'
   
 newVar :: State Int Formula
 newVar = state $ \x -> (Var $ x + 1, x + 1)
