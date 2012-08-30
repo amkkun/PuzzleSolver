@@ -1,7 +1,14 @@
 {-# OPTIONS -Wall #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Logic where
+module Logic 
+       ( Formula (..)
+       , VarNum
+       , allAnd
+       , allOr
+       , dimacsTseitin
+       , dimacsNormal
+       ) where
 
 -- import Data.ByteString (ByteString)
 -- import qualified Data.ByteString as BS
@@ -299,6 +306,10 @@ varNumListC [] = []
 varNumListC ([]:cnf) = varNumListC cnf
 varNumListC ((lit:cl):cnf) = abs (toNum lit) : varNumListC (cl:cnf) 
 
+toNum :: Literal -> Int
+toNum (A v) = v
+toNum (N v) = negate v
+
 -- # Encode DIMACS format
 dimacsTseitin :: Formula -> String
 dimacsTseitin = toDimacsString . runTseitin 
@@ -316,28 +327,23 @@ toDimacsString cnf = concat $ firstLine : map clauseString cnf
 clauseString :: Clause -> String
 clauseString = (++ " 0\n") . concat . intersperse " " . map show . map toNum
 
-toNum :: Literal -> Int
-toNum (A v) = v
-toNum (N v) = negate v
-
-
 -- # test Formulas
-fml :: Formula
-fml = Or (Equiv (Var 4) (And (Imply (Var 3) (And (Var 6) (Var 7))) (Var 1))) (And (Var 2) (Var 5))
+-- fml :: Formula
+-- fml = Or (Equiv (Var 4) (And (Imply (Var 3) (And (Var 6) (Var 7))) (Var 1))) (And (Var 2) (Var 5))
 
-small :: Formula
-small = allOr . map allAnd . divide 2 . map Var $ [1..4]
-
-
-large :: Formula
-large = allOr . map allAnd . divide 50 $ map Var [1..100000]
+-- small :: Formula
+-- small = allOr . map allAnd . divide 2 . map Var $ [1..4]
 
 
-divide :: Int -> [a] -> [[a]]
-divide _ [] = []
-divide n xs = left : divide n right
-  where
-    (left, right) = splitAt n xs
+-- large :: Formula
+-- large = allOr . map allAnd . divide 50 $ map Var [1..100000]
+
+
+-- divide :: Int -> [a] -> [[a]]
+-- divide _ [] = []
+-- divide n xs = left : divide n right
+--   where
+--     (left, right) = splitAt n xs
     
 -- writeTseitin :: IO ()
 -- writeTseitin = writeFile "tseitin" $ concat ["p cnf 500 3000", encode 100 large]
