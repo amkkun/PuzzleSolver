@@ -65,7 +65,18 @@ elimConst (Or p q) = case (elimConst p, elimConst q) of
   (_, Const True) -> Const True  
   (r, Const False) -> r
   (r, s) -> Or r s
-elimConst _ = error "elimConst"
+elimConst (Imply p q) = case (elimConst p, elimConst q) of
+  (Const True, r) -> r
+  (Const False, _) -> Const True
+  (_, Const True) -> Const True
+  (r, Const False) -> Not r
+  (r, s) -> Imply r s
+elimConst (Equiv p q) = case (elimConst p, elimConst q) of
+  (Const True, r) -> r
+  (Const False, r) -> Not r
+  (r, Const True) -> r
+  (r, Const False) -> Not r
+  (r, s) -> Equiv r s
 
 deMorgan :: Formula -> Formula
 deMorgan (Const b) = Const b
