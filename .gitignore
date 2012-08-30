@@ -3,4 +3,5 @@
 *.dimacs
 
 ignore/
-caval-dev/
+cabal-dev/
+
