@@ -1,5 +1,5 @@
 {-# OPTIONS -Wall #-}
-module Logic 
+module Formula
        ( Formula (..)
        , VarNum
        , allAnd
