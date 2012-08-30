@@ -31,52 +31,35 @@ data Literal = A VarNum
              | N VarNum
              deriving (Show, Eq)          
 
-elimEquiv :: Formula -> Formula
-elimEquiv (Const b) = Const b
-elimEquiv (Var v) = Var v
-elimEquiv (Not p) = Not (elimEquiv p)
-elimEquiv (And p q) = And (elimEquiv p) (elimEquiv q) 
-elimEquiv (Or p q) = Or (elimEquiv p) (elimEquiv q)
-elimEquiv (Imply p q) = Imply (elimEquiv p) (elimEquiv q)
-elimEquiv (Equiv p q) = And (Imply (elimEquiv p) (elimEquiv q)) (Imply (elimEquiv q) (elimEquiv p))
-
-elimImply :: Formula -> Formula
-elimImply (Const b) = Const b
-elimImply (Var v) = Var v
-elimImply (Not p) = Not (elimImply p)
-elimImply (And p q) = And (elimImply p) (elimImply q)
-elimImply (Or p q) = Or (elimImply p) (elimImply q)
-elimImply (Imply p q) = Or (Not (elimImply p)) (elimImply q)
-elimImply (Equiv _ _) = error "先にelimEquivやってくれ"
-
-elimConst :: Formula -> Formula
-elimConst (Const b) = Const b
-elimConst (Var v) = Var v
-elimConst (Not p) = Not (elimConst p)
-elimConst (And p q) = case (elimConst p, elimConst q) of
+  
+elimUseless :: Formula -> Formula
+elimUseless (Const b) = Const b
+elimUseless (Var v) = Var v
+elimUseless (Not p) = Not (elimUseless p)
+elimUseless (And p q) = case (elimUseless p, elimUseless q) of
   (Const True, r) -> r
   (Const False, _) -> Const False
   (r, Const True) -> r  
   (_, Const False) -> Const False
   (r, s) -> And r s
-elimConst (Or p q) = case (elimConst p, elimConst q) of
+elimUseless (Or p q) = case (elimUseless p, elimUseless q) of
   (Const True, _) -> Const True
   (Const False, r) -> r
   (_, Const True) -> Const True  
   (r, Const False) -> r
   (r, s) -> Or r s
-elimConst (Imply p q) = case (elimConst p, elimConst q) of
+elimUseless (Imply p q) = case (elimUseless p, elimUseless q) of
   (Const True, r) -> r
   (Const False, _) -> Const True
   (_, Const True) -> Const True
   (r, Const False) -> Not r
-  (r, s) -> Imply r s
-elimConst (Equiv p q) = case (elimConst p, elimConst q) of
+  (r, s) -> Or (Not r) s 
+elimUseless (Equiv p q) = case (elimUseless p, elimUseless q) of
   (Const True, r) -> r
   (Const False, r) -> Not r
   (r, Const True) -> r
   (r, Const False) -> Not r
-  (r, s) -> Equiv r s
+  (r, s) -> And (Or (Not r) s) (Or (Not s) r)
 
 deMorgan :: Formula -> Formula
 deMorgan (Const b) = Const b
@@ -87,10 +70,10 @@ deMorgan (Not p) = case p of
   Not q -> deMorgan q
   And q r -> Or (deMorgan $ Not q) (deMorgan $ Not r)
   Or q r -> And (deMorgan $ Not q) (deMorgan $ Not r) 
-  _ -> error "before deMorgan, do elimEquiv and elimImply"
+  _ -> error "before deMorgan, do elimUseless"
 deMorgan (And p q) = And (deMorgan p) (deMorgan q)
 deMorgan (Or p q) = Or (deMorgan p) (deMorgan q)
-deMorgan _ = error "before deMorgan, do elimEquiv and elimImply"
+deMorgan _ = error "before deMorgan, do elimUseless"
 
 distOr :: Formula -> Formula
 distOr (Const b) = Const b
@@ -105,7 +88,7 @@ distOr (Or p q) = case distOr p of
 distOr _ = error "before distOr, do deMorgan"
 
 formulaCNF :: Formula -> Formula
-formulaCNF = distOr . elimConst . deMorgan . elimImply . elimEquiv
+formulaCNF = distOr . deMorgan . elimUseless
 
 
 isCNF :: Formula -> Bool
@@ -301,7 +284,7 @@ newVar = state $ \x -> (Var $ x + 1, x + 1)
 run :: VarNum -> Formula -> CNF                       
 run maxVarNum formula = toCNF . And (Var next) . fst . runState (tseitin formula' (Var next)) $ next 
   where
-    formula' = elimConst formula
+    formula' = elimUseless formula
     next = maxVarNum + 1 
       
            
