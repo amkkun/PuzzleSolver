@@ -6,6 +6,19 @@ import Control.Applicative ((<$>))
 
 type Matrix a = [[a]]
 
+data PuzzleType = SudokuType 
+                | IllustLogicType 
+                deriving (Eq, Show)
+                         
+
+
+readPuzzleType :: String -> PuzzleType
+readPuzzleType s
+  | s == "sudoku" = SudokuType
+  | s == "illustlogic" = IllustLogicType
+  | otherwise = error "sudoku or illustlogic"
+
+
 class Puzzle a where
   maxVariable :: a -> VarNum  
   varMatrix :: a -> [Matrix VarNum]
@@ -13,6 +26,7 @@ class Puzzle a where
   constraint :: a -> Formula
   
   showPuzzle :: a -> [VarNum] -> IO ()
+  parsePuzzle :: PuzzleType -> [String] -> a
   
   writeDIMACS :: a -> IO ()
   writeDIMACS = C.writeFile "puzzle.dimacs" . dimacsTseitin . constraint

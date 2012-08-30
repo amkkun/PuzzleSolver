@@ -235,6 +235,8 @@ instance Puzzle IllustLogic where
     mapM_ (putStrLn . concat . map (\b -> if b then "#" else " ")) .
     divide (length yss) . 
     map (\n -> if n > 0 then True else False)
+    
+  parsePuzzle IllustLogicType _ = info
 
 -- 
 lineConstraint :: [VarNum] -> [Int] -> Formula
