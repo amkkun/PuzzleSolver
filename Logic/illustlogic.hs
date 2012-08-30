@@ -2,8 +2,8 @@
 
 import Logic
 import Data.List
+import Control.Applicative ((<$>))
 
-data Cell = Cell Int Bool
 data Info = Info [[Int]] [[Int]]
 type Matrix a = [[a]]
 
@@ -42,6 +42,61 @@ info = Info
        , [0]
        ]
 
+info2 :: Info
+info2 = Info
+        [ [1,1]
+        , [1,1]
+        , [2,3]
+        , [4,5]
+        , [10]
+        , [8]
+        , [0]
+        , [0]
+        , [0]
+        , [0]
+        , [1,1]
+        , [10]
+        , [8]
+        , [4]
+        , [2]
+        ]
+        [ [2,2]
+        , [4,2]
+        , [5,2]
+        , [1,3,3]
+        , [2,4]
+        , [3,4]
+        , [4,3]
+        , [6,2]
+        , [4,2]
+        , [2,2]
+        ]
+
+
+small :: Info
+small = Info
+        [ [1]
+        , [2]
+        , [3]
+        ]
+        [ [1]
+        , [3]
+        , [2]
+        ]
+        
+small2 :: Info
+small2 = Info
+         [ [1,2]
+         ]
+         [ [1]
+         , [0]
+         , [1]
+         , [1]
+         -- , [0]
+         -- , [1]
+         -- , [1]
+         -- , [1]
+         ]
 -- distribute 2 3 == [[2,0,0],[1,1,0],[1,0,1],[0,2,0],[0,1,1],[0,0,2]]
 distribute :: Int -> Int -> [[Int]]
 distribute n size 
@@ -56,12 +111,12 @@ mutually (x:_) [] = [x]
 mutually (x:xs) (y:ys) = x : y : mutually xs ys
 
 -- divide 3 [1..10] == [[1,2,3],[4,5,6],[7,8,9],[10]]
--- divide :: Int -> [a] -> [[a]]
--- divide _ [] = []
--- divide n xs = let (left, right) = splitAt n xs in left : divide n right
+divide :: Int -> [a] -> [[a]]
+divide _ [] = []
+divide n xs = let (left, right) = splitAt n xs in left : divide n right
 
 
-
+-- # main
 constraint :: Info -> Formula
 constraint info@(Info xss yss) = 
   And 
@@ -75,13 +130,14 @@ lineConstraint :: [VarNum] -> [Int] -> Formula
 lineConstraint vs ns
   | ns == [] = error "constraint: empty list. possible fix -> [0]"
   | rest < 0 = error ("constraint: " ++ show len ++ " < " ++ show ns)
-  | otherwise = allOr [makeFormula vs ns bs | bs <- distribute rest blankLen] 
+  | otherwise = allOr [makeFormula vs ns bs' | bs <- distribute rest blankLen
+                                            , let bs' = betweenPlus bs] 
   where
     len = length vs 
     rest = len - sum ns - (length ns - 1)
     blankLen = if ns == [0] then 1 else length ns + 1
       
--- foo [1,2,3,4] [1,1,2] == And (Not (Var 1)) (And (Var 2) (And (Not (Var 3)) (And (Not (Var 4)) (Const True))))
+-- makeFormula [1,2,3,4] [1,2] [0,1,0] == And (Var 1) (And (Not (Var 2)) (And (Var 3) (Var 4)))
 makeFormula :: [VarNum] -> [Int] -> [Int] -> Formula
 makeFormula vs ns bs = makeFormula' vs (mutually bs ns) False
   where
@@ -92,7 +148,30 @@ makeFormula vs ns bs = makeFormula' vs (mutually bs ns) False
       where
         (left, right) = splitAt c vs
         vals = map Var left
-        
+    
+betweenPlus :: [Int] -> [Int]
+betweenPlus xs
+  | null xs || length xs == 1 = xs
+  | otherwise = head xs : map succ (init $ tail xs) ++ [last xs]
+      
+
 varMatrix :: Info -> Matrix VarNum
 varMatrix (Info xss yss) = divide (length yss) [1..(length xss * length yss)]
 
+-- # IO
+useTseitin :: Info -> IO ()
+useTseitin = writeFile "qT.dimacs" . dimacsTseitin . constraint 
+
+useNormal :: Info -> IO ()
+useNormal = writeFile "qN.dimacs" . dimacsNormal . constraint 
+
+decode :: FilePath -> Info -> IO ()
+decode filepath (Info rs cs) = do
+  ans <- lines <$> readFile filepath
+  if head ans == "SAT"
+    then display . ready (length cs) . take (length rs * length cs) . map read . words $ ans !! 1
+    else putStrLn "It is not satisfiable!"
+  where       
+    ready size = divide size . map (\n -> if n > 0 then True else False)
+    display = mapM_ (putStrLn . concat . map (\b -> if b then "#" else " ")) 
+  
