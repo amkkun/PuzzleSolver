@@ -236,7 +236,7 @@ instance Puzzle IllustLogic where
     divide (length yss) . 
     map (\n -> if n > 0 then True else False)
     
-  parsePuzzle IllustLogicType _ = info
+  parsePuzzle _ = info
 
 -- 
 lineConstraint :: [VarNum] -> [Int] -> Formula
