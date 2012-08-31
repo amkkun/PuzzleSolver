@@ -26,6 +26,7 @@ PuzzleTypeは、sudoku(数独)、illustlogic(イラストロジック)です。
 なら行サイズは2、列サイズは3です。
 
 例）
+
     3 3
     
     2 5 0 0 3 0 0 4 6
@@ -47,6 +48,7 @@ PuzzleTypeは、sudoku(数独)、illustlogic(イラストロジック)です。
 としてください。
 
 例）
+
     15 15
      
     0
