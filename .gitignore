@@ -1,6 +1,7 @@
 *.o
 *.hi
 *.dimacs
+*.test
 
 ignore/
 cabal-dev/
