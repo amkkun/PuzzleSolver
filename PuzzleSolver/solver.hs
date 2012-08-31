@@ -3,6 +3,7 @@
 module Main where
 
 import Puzzle
+import Sudoku
 import IllustLogic
 
 import System.Environment
@@ -11,8 +12,8 @@ import System.Process
 import Control.Applicative ((<$>))
 
 
-data PuzzleType = IllustLogicType
-
+data PuzzleType = SudokuType
+                | IllustLogicType
 
 main :: IO ()
 main = do
@@ -28,15 +29,14 @@ checkArgs _ = do
 
 readPuzzleType :: String -> PuzzleType
 readPuzzleType s
---  | s == "sudoku" = SudokuType
+  | s == "sudoku" = SudokuType
   | s == "illustlogic" = IllustLogicType
   | otherwise = error "sudoku or illustlogic"
-
 
 assign :: PuzzleType -> [String] -> IO ()
 assign puzzleType puzzleStr = case puzzleType of
   IllustLogicType -> solve $ (parsePuzzle puzzleStr :: IllustLogic)
-  
+  SudokuType -> solve $ (parsePuzzle puzzleStr :: Sudoku)
 
 solve :: Puzzle p => p -> IO ()
 solve puzzle = do

@@ -11,7 +11,7 @@ type Matrix a = [[a]]
 class Puzzle a where
   maxVariable :: a -> VarNum  
   
-  varMatrix :: a -> [Matrix VarNum]
+  varMatrix :: a -> Matrix [VarNum]
 
   constraint :: a -> Formula
   
