@@ -5,7 +5,10 @@ import Formula
 import qualified Data.ByteString.Lazy.Char8 as C
 import Control.Applicative ((<$>))
 
+data EncodeType = Tseitin | Normal | None
+
 type Matrix a = [[a]]
+
 
 
 class Puzzle a where
@@ -19,9 +22,14 @@ class Puzzle a where
   
   parsePuzzle :: [String] -> a
   
-  writeDIMACS :: a -> IO ()
-  writeDIMACS = C.writeFile "puzzle.dimacs" . dimacsTseitin . constraint
+  encodeType :: a -> EncodeType
   
+  writeDIMACS :: a -> IO ()
+  writeDIMACS puzzle = case encodeType puzzle of
+    Tseitin -> C.writeFile "puzzle.dimacs" . dimacsTseitin $ constraint puzzle
+    Normal -> C.writeFile "puzzle.dimacs" . dimacsNormal $ constraint puzzle
+    None -> C.writeFile "puzzle.dimacs" . toDimacsString . toCNF . elimUseless $ constraint puzzle
+      
   readDIMACS :: a -> IO ()
   readDIMACS puzzle = do
     ans <- lines <$> readFile "answer.dimacs"

@@ -6,8 +6,10 @@ module Formula
        , allOr
        , elimUseless
        , isCNFFormula
+       , toCNF
        , dimacsTseitin
        , dimacsNormal
+       , toDimacsString
        ) where
 
 import Data.List

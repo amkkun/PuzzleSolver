@@ -38,6 +38,8 @@ instance Puzzle Sudoku where
     where
       [rsize, csize] = map read . words . head $ puzzleStr
       matrix = map (map read) . map words . filter (not . null) . tail $ puzzleStr
+  
+  encodeType _ = None
 
 entryConstraint :: Matrix [Formula] -> Formula     
 entryConstraint = allAnd . map allAnd . map (map allOr)

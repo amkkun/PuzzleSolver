@@ -36,7 +36,9 @@ instance Puzzle IllustLogic where
     where
       [rsize, csize] = map read . words . head $ strs
       (row, col) = splitAt rsize . map (map read) . map words . filter (not . null) . tail $ strs
-      
+  
+  encodeType _ = Tseitin
+
 -- 
 lineConstraint :: [VarNum] -> [Int] -> Formula
 lineConstraint vs ns
