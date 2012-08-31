@@ -3,6 +3,8 @@
 *.dimacs
 *.test
 
+solver
+
 ignore/
 cabal-dev/
 tmp/
