@@ -2,8 +2,8 @@
 
 ## PuzzleSolverディレクトリ
 
-MiniSATというSATソルバを利用したパズルソルバです。
-solver.hsをコンパイルしてください。
+MiniSatというSATソルバを利用したパズルソルバです。
+MiniSatをインストールし、solver.hsをコンパイルしてください。
 
 現在、数独とイラストロジックに対応しています。
 
