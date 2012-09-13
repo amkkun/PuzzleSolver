@@ -31,10 +31,6 @@ type ValMap = SeqMap Val Pos
 
 -- data Hatena a = Def a | Yet (Seq a) 
 
--- * lib
-isSingle :: Seq a -> Bool
-isSingle = (== 1) . S.length
-
 -- * solve main loop
 solve :: PosMap -> Seq PosMap
 solve pm
@@ -152,14 +148,11 @@ reduceLine f ps = filter2 cond ps fit
     fit = join . liftM (liftM (`S.index` 0)) . S.filter isSingle . liftM (grouping f) . grouping isSameBox $ ps
     cond p1 p2 = isSameBox p1 p2 || not (f p1 p2)
 
-filter2 :: (a -> b -> Bool) -> Seq a -> Seq b -> Seq a
-filter2 f xs ys
-  | S.null xs = S.empty
-  | F.all (f x) ys = x <| filter2 f (S.drop 1 xs) ys
-  | otherwise = filter2 f (S.drop 1 xs) ys
-  where
-    x = S.index xs 0
-    
+
+-- * lib
+isSingle :: Seq a -> Bool
+isSingle = (== 1) . S.length
+
 -- ys から xs の要素を引く
 filterDup :: Eq a => Seq a -> Seq a -> Seq a
 filterDup xs = S.filter (not . (`F.elem` xs))
@@ -171,6 +164,13 @@ grouping f xs
   where
     (fit, rest) = S.partition (f $ S.index xs 0) xs
 
+filter2 :: (a -> b -> Bool) -> Seq a -> Seq b -> Seq a
+filter2 f xs ys
+  | S.null xs = S.empty
+  | F.all (f x) ys = x <| filter2 f (S.drop 1 xs) ys
+  | otherwise = filter2 f (S.drop 1 xs) ys
+  where
+    x = S.index xs 0
 
     
 -- * position
@@ -245,7 +245,6 @@ sudoku17 :: IO ()
 sudoku17 = forever $ do
   sudoku <- divide 9 . map read . divide 1 <$> getLine
   F.mapM_ display $ runSolve sudoku
-  -- mapM_ (\_ -> putStr "##") $ solve (3, 3, sudoku)
   putStrLn "--"
   
 showSolve :: Matrix Val -> IO ()
