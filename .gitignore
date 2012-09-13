@@ -4,6 +4,7 @@
 *.test
 
 solver
+minsudokutest
 
 ignore/
 cabal-dev/

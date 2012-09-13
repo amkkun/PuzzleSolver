@@ -81,29 +81,27 @@ grouping f l@(x:_) = first : grouping f rest
     (first, rest) = partition (f x) l
 
 elimPos :: ValPos -> ValPos
-elimPos = elimPosThree . elimPosTwo . boxsVP . elimPosTwo . colsVP . elimPosTwo . rowsVP
+elimPos = elimPosThree . elimPosTwo . boxsVP . elimPosTwo . colsVP . elimPosTwo . rowsVP -- elimPosFour -- .
 
--- elimPosE :: ValPos -> ValPos
--- elimPosE = elimPosThree . 
---            concatVP . map elimPosFour' . boxsVPE . elimPosTwoE . boxsVP .
---            concatVP . map elimPosFour' . colsVPE . elimPosTwoE . colsVP .
---            concatVP . map elimPosFour' . rowsVPE . elimPosTwoE . rowsVP
- 
--- elimPosTwoE :: [(Value, [[CellPos]])] -> [(Value, [[CellPos]])]
--- elimPosTwoE vps = map (\(v, pss) -> (v, map (`remove` fixedPos) pss)) vps
+
+-- elimPosTwo :: [(Value, [[CellPos]])] -> ValPos
+-- elimPosTwo vps = if vpss /= vps'
+--                  then trace "!" vps'
+--                  else trace "?" vps' 
 --   where
 --     fixedPos = concat . map (\(_, pss) -> fixed pss) $ vps
-
-
+--     vpss = map (\(v, pss) -> (v, concat pss)) vps
+--     vps' = map (\(v, pss) -> (v, concat $ map (`remove` fixedPos) pss)) vps
 elimPosTwo :: [(Value, [[CellPos]])] -> ValPos
 elimPosTwo vps = map (\(v, pss) -> (v, concat $ map (`remove` fixedPos) pss)) vps
   where
     fixedPos = concat . map (\(_, pss) -> fixed pss) $ vps
 
--- elimPosFour :: ValPos -> ValPos
--- elimPosFour = elimFour boxsVP' . elimFour colsVP' . elimFour rowsVP'
---   where
---     elimFour f = concatVP . map elimPosFour' . f
+
+elimPosFour :: ValPos -> ValPos
+elimPosFour = elimFour boxsVP' . elimFour colsVP' . elimFour rowsVP'
+  where
+    elimFour f = concatVP . map elimPosFour' . f
 
 concatVP :: [ValPos] -> ValPos
 concatVP = map foo . grouping isSameValVP . concat
@@ -115,12 +113,33 @@ filterVP ps = map (\(v, ps') -> (v, filter (`notElem` ps) ps'))
     
     
     
--- elimPosFour' :: ValPos -> ValPos
--- elimPosFour' vp = concat fit ++ rest'
+elimPosFour' :: ValPos -> ValPos
+elimPosFour' vp = concat fit ++ (
+  -- if let fitPoss = concat . map snd . concat $ filter ((==) tracen . length) fit
+  --    in or [any (elem fitPos . snd) (concat rest) | fitPos <- fitPoss]  
+  -- then trace "!" rest'
+  -- else 
+    trace "!" rest')
+  where
+    (fit, rest) = partition (\l@((_, ps):_) -> length l == length ps) $ grouping isSamePosVP vp -- :: [ValPos] length l == 2 && 
+    ps = concat . concat $ map (map snd) fit -- (trace ("fit:" ++ show fit) fit)
+    rest' = filterVP ps $ concat rest
+    tracen = 1
+
+-- elimPosFourTest :: Int -> ValPos -> ValPos
+-- elimPosFourTest n vp
+--   | n == 0 = concat fit ++ (trace "!" rest')
+--   | otherwise = trace (show (concat fit ++ rest')) (elimPosFourTest (n - 1) vp)
 --   where
 --     (fit, rest) = partition (\l@((_, ps):_) -> length l == length ps) $ grouping isSamePosVP vp -- :: [ValPos] length l == 2 && 
 --     ps = concat . concat $ map (map snd) fit -- (trace ("fit:" ++ show fit) fit)
 --     rest' = filterVP ps $ concat rest
+--     tracen = 1
+
+-- runTest :: ValPos
+-- runTest = elimPosFourTest 10000 . toValPos . eliminate . analyze $ hard
+
+
 
 isSameValVP :: (Value, [CellPos]) -> (Value, [CellPos]) -> Bool    
 isSameValVP (v1, _) (v2, _) = v1 == v2
@@ -138,41 +157,54 @@ isSamePosVP (_, ps1) (_, ps2) = sort ps1 == sort ps2
 --               , [0,0,0, 0,0,0]
 --               , [0,0,0, 0,0,0]
 --               ])
--- rowsVPE :: [(Value, [[CellPos]])] -> [ValPos]
--- rowsVPE vp = grouping (\(_, (p1:_)) (_, (p2:_)) -> p1 `isSameRow` p2) bunch
---   where
---     bunch = [(v, ps) | (v, pss) <- vp, ps <- pss]
--- colsVPE :: [(Value, [[CellPos]])] -> [ValPos]
--- colsVPE vp = grouping (\(_, (p1:_)) (_, (p2:_)) -> p1 `isSameCol` p2) bunch
---   where
---     bunch = [(v, ps) | (v, pss) <- vp, ps <- pss]
--- boxsVPE :: [(Value, [[CellPos]])] -> [ValPos]
--- boxsVPE vp = grouping (\(_, (p1:_)) (_, (p2:_)) -> p1 `isSameBox` p2) bunch
---   where
---     bunch = [(v, ps) | (v, pss) <- vp, ps <- pss]
+
+
+elimPosE :: ValPos -> ValPos
+elimPosE = elimPosThree . 
+           concatVP . map elimPosFour' . boxsVPE . elimPosTwoE . boxsVP .
+           concatVP . map elimPosFour' . colsVPE . elimPosTwoE . colsVP .
+           concatVP . map elimPosFour' . rowsVPE . elimPosTwoE . rowsVP
+ 
+elimPosTwoE :: [(Value, [[CellPos]])] -> [(Value, [[CellPos]])]
+elimPosTwoE vps = map (\(v, pss) -> (v, map (`remove` fixedPos) pss)) vps
+  where
+    fixedPos = concat . map (\(_, pss) -> fixed pss) $ vps
+
+rowsVPE :: [(Value, [[CellPos]])] -> [ValPos]
+rowsVPE vp = grouping (\(_, (p1:_)) (_, (p2:_)) -> p1 `isSameRow` p2) bunch
+  where
+    bunch = [(v, ps) | (v, pss) <- vp, ps <- pss]
+colsVPE :: [(Value, [[CellPos]])] -> [ValPos]
+colsVPE vp = grouping (\(_, (p1:_)) (_, (p2:_)) -> p1 `isSameCol` p2) bunch
+  where
+    bunch = [(v, ps) | (v, pss) <- vp, ps <- pss]
+boxsVPE :: [(Value, [[CellPos]])] -> [ValPos]
+boxsVPE vp = grouping (\(_, (p1:_)) (_, (p2:_)) -> p1 `isSameBox` p2) bunch
+  where
+    bunch = [(v, ps) | (v, pss) <- vp, ps <- pss]
 
 
 
--- rowsVP' :: ValPos -> [ValPos]
--- rowsVP' vp = grouping (\(_, (p1:_)) (_, (p2:_)) -> p1 `isSameRow` p2) bunch
---   where
---     bunch = [(v, ps) | (v, pss) <- rowsVP vp, ps <- pss]
+rowsVP' :: ValPos -> [ValPos]
+rowsVP' vp = grouping (\(_, (p1:_)) (_, (p2:_)) -> p1 `isSameRow` p2) bunch
+  where
+    bunch = [(v, ps) | (v, pss) <- rowsVP vp, ps <- pss]
                      
--- colsVP' :: ValPos -> [ValPos]
--- colsVP' vp = grouping (\(_, (p1:_)) (_, (p2:_)) -> p1 `isSameCol` p2) bunch
---   where
---     bunch = do
---       (v, pss) <- colsVP vp
---       ps <- pss
---       return (v, ps)
+colsVP' :: ValPos -> [ValPos]
+colsVP' vp = grouping (\(_, (p1:_)) (_, (p2:_)) -> p1 `isSameCol` p2) bunch
+  where
+    bunch = do
+      (v, pss) <- colsVP vp
+      ps <- pss
+      return (v, ps)
 
--- boxsVP' :: ValPos -> [ValPos]
--- boxsVP' vp = grouping (\(_, (p1:_)) (_, (p2:_)) -> p1 `isSameBox` p2) bunch
---   where
---     bunch = do
---       (v, pss) <- boxsVP vp
---       ps <- pss
---       return (v, ps)
+boxsVP' :: ValPos -> [ValPos]
+boxsVP' vp = grouping (\(_, (p1:_)) (_, (p2:_)) -> p1 `isSameBox` p2) bunch
+  where
+    bunch = do
+      (v, pss) <- boxsVP vp
+      ps <- pss
+      return (v, ps)
 
 
 elimPosThree :: ValPos -> ValPos
@@ -195,9 +227,9 @@ filter2 f (x:xs) ys
 
 
 eliminate :: PosVal -> PosVal
-eliminate = toPosVal . elimPos . toValPos . elimVal -- pv = if pv == pv' then pv else eliminate pv' 
-  -- where
-  --   pv' = toPosVal . elimPos . toValPos . elimVal $ pv
+eliminate  pv = if pv == pv' then pv else eliminate pv' 
+  where
+    pv' = toPosVal . elimPos . toValPos . elimVal $ pv
 
 
 isSameRow :: CellPos -> CellPos -> Bool
@@ -304,14 +336,15 @@ main = do
   -- let answers = solve sudoku
   -- mapM_ display answers
   -- putStrLn "--"
-  sudoku17
   -- showSolve hard
-  -- showSolve large
+  sudoku17
+  --showSolve large
   
 sudoku17 :: IO ()
 sudoku17 = forever $ do
   sudoku <- divide 9 . map read . divide 1 <$> getLine
   mapM_ display $ solve (3, 3, sudoku)
+  -- mapM_ (\_ -> putStr "##") $ solve (3, 3, sudoku)
   putStrLn "--"
   
 showSolve :: Sudoku -> IO ()
