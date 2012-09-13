@@ -88,13 +88,12 @@ toPosMap vm = do
 
 -- * eliminate determinate value
 elimDeterminate :: PosMap -> PosMap
-elimDeterminate pm = pm >>= return . elim' determinate
+elimDeterminate pm = pm >>= return . elimDeterminate' determinate
   where
     determinate = S.filter (isSingle . snd) pm
 
--- TODO rename
-elim' :: PosMap -> (Pos, Seq Val) -> (Pos, Seq Val)
-elim' pm pair@(pos, vals)
+elimDeterminate' :: PosMap -> (Pos, Seq Val) -> (Pos, Seq Val)
+elimDeterminate' pm pair@(pos, vals)
   | isSingle $ snd pair = pair
   | otherwise = (pos, filterDup relatedVals vals)
   where
@@ -107,12 +106,13 @@ toValMap pm = do
   val <- cellvals
   return (val, fmap fst $ S.filter (\(_, vals) -> F.elem val vals) pm)
 
--- * eliminate position one
+-- * eliminate position 
 elimPos :: ValMap -> ValMap
 elimPos = op isSameRow . op isSameCol . op isSameBox
   where
     op f = joinVM . liftM elimPosEx' . subGroup f -- elimPos' <-> elimPosEx'
 
+-- only one
 elimPos' :: ValMap -> ValMap
 elimPos' vm = fmap (\(v, pss) -> (v, if isSingle pss
                                      then pss
@@ -120,6 +120,13 @@ elimPos' vm = fmap (\(v, pss) -> (v, if isSingle pss
   where
     fixedPos = join . S.filter isSingle . fmap snd $ vm 
 
+-- extension
+elimPosEx' :: ValMap -> ValMap
+elimPosEx' vm = join fit >< rest'
+  where
+    (fit, rest) = S.partition (\s -> S.length s == S.length (snd $ S.index s 0)) $ grouping (\(_, s1) (_, s2) -> s1 == s2) vm 
+    fitPos = join . join $ liftM (liftM snd) fit
+    rest' = fmap (\(v, ps) -> (v, S.filter (not . (`F.elem` fitPos)) ps)) $ join rest
     
 joinVM :: Seq ValMap -> ValMap
 joinVM svm = liftM joinPos $ grouping (\vp vp' -> fst vp == fst vp') $ join svm
@@ -134,17 +141,6 @@ subGroup isSame vm = grouping samePos tmp
       poss' <- grouping isSame poss
       return (val, poss')
     samePos (v, ps) (v', ps') = isSame (S.index ps 0) (S.index ps' 0) 
-
--- * eliminate position extension
-
--- TODO rename
-elimPosEx' :: ValMap -> ValMap
-elimPosEx' vm = join fit >< rest'
-  where
-    (fit, rest) = S.partition (\s -> S.length s == S.length (snd $ S.index s 0)) $ grouping (\(_, s1) (_, s2) -> s1 == s2) vm 
-    fitPos = join . join $ liftM (liftM snd) fit
-    rest' = fmap (\(v, ps) -> (v, S.filter (not . (`F.elem` fitPos)) ps)) $ join rest
-
 
 -- * eliminate Line
 elimLine :: ValMap -> ValMap
