@@ -227,9 +227,10 @@ filter2 f (x:xs) ys
 
 
 eliminate :: PosVal -> PosVal
-eliminate  pv = if pv == pv' then pv else eliminate pv' 
-  where
-    pv' = toPosVal . elimPos . toValPos . elimVal $ pv
+eliminate  pv = -- if pv == pv' then pv else eliminate pv' 
+  -- where
+  --   pv' = 
+      toPosVal . elimPos . toValPos . elimVal $ pv
 
 
 isSameRow :: CellPos -> CellPos -> Bool

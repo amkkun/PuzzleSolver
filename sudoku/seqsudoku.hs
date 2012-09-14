@@ -1,3 +1,5 @@
+{-# OPTIONS -Wall #-}
+
 import Data.Sequence (Seq, (<|), (><))
 import qualified Data.Sequence as S
 import qualified Data.Foldable as F
@@ -74,7 +76,7 @@ eliminate pm
   | pm == pm' = pm'
   | otherwise = eliminate pm'
   where
-    pm' = toPosMap . elimLine . elimPos . toValMap . elimDeterminate $ pm
+    pm' = toPosMap . elimLine . elimDetBox . elimPos . toValMap$ pm
 
 -- * eliminate PosMap
 toPosMap :: ValMap -> PosMap
@@ -96,6 +98,21 @@ elimDeterminate' pm pair@(pos, vals)
     relatedPM = S.filter (isRelatedPos pos . fst) pm 
     relatedVals = join $ liftM snd relatedPM
 
+elimDet :: PosMap -> PosMap
+elimDet = op isSameCol . op isSameRow . op isSameBox
+  where
+    op f = join . liftM reduceDet . subGroupPM f
+
+subGroupPM :: (Pos -> Pos -> Bool) -> PosMap -> Seq PosMap
+subGroupPM f = grouping (\(p1, _) (p2, _) -> f p1 p2)
+  
+reduceDet :: PosMap -> PosMap
+reduceDet pm = liftM (\(p, vs) -> (p, if isSingle vs
+                                      then vs
+                                      else filterDup detVals vs)) pm
+  where
+    detVals = join $ S.filter isSingle $ liftM snd pm
+    
 -- * eliminate ValMap
 toValMap :: PosMap -> ValMap
 toValMap pm = do
@@ -148,6 +165,15 @@ reduceLine f ps = filter2 cond ps fit
     fit = join . liftM (liftM (`S.index` 0)) . S.filter isSingle . liftM (grouping f) . grouping isSameBox $ ps
     cond p1 p2 = isSameBox p1 p2 || not (f p1 p2)
 
+-- * eliminate determinate position
+elimDetBox :: ValMap -> ValMap
+elimDetBox vm = joinVM $ do
+  box <- subGroup isSameBox vm
+  let detPos = join . S.filter isSingle . liftM snd $ box
+      box' = liftM (\(v, ps) -> (v, if isSingle ps
+                                    then ps
+                                    else filterDup detPos ps)) box
+  return box'
 
 -- * lib
 isSingle :: Seq a -> Bool
