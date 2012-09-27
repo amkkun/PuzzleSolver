@@ -3,7 +3,7 @@
 *.dimacs
 *.test
 
-solver
+main
 minsudokutest
 
 ignore/
