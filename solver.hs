@@ -1,4 +1,4 @@
-{-# OPTIONS -Wall #-}
+{-# OPTIONS -Wall -rtsopts #-}
 
 module Main where
 
@@ -41,6 +41,6 @@ assign puzzleType puzzleStr = case puzzleType of
 solve :: Puzzle p => p -> IO ()
 solve puzzle = do
   writeDIMACS puzzle
-  (exitcode, stdout, stderr) <- readProcessWithExitCode "minisat" ["puzzle.dimacs", "answer.dimacs"] ""
+  _ <- readProcessWithExitCode "minisat" ["puzzle.dimacs", "answer.dimacs"] "" -- (exitcode, stdout, stderr) <- 
   readDIMACS puzzle
   
