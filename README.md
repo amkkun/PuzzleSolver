@@ -8,7 +8,7 @@ $ ghc -O main.hs
 
 現在、数独とイラストロジックに対応しています。
 
-./solver <PuzzleType> <FilePath>
+./main \<PuzzleType\> \<FilePath\>
 で実行します。
 
 PuzzleTypeは、sudoku(数独)、illustlogic(イラストロジック)です。
