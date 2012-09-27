@@ -1,19 +1,20 @@
 # Pencil Puzzle Solver
 
-## PuzzleSolverディレクトリ
 
 MiniSatというSATソルバを利用したパズルソルバです。
-MiniSatをインストールし、solver.hsをコンパイルしてください。
+MiniSatをインストールし、main.hsをコンパイルしてください。
+
+$ ghc -O main.hs
 
 現在、数独とイラストロジックに対応しています。
 
-./solver PuzzleType FilePath
+./solver <PuzzleType> <FilePath>
 で実行します。
 
 PuzzleTypeは、sudoku(数独)、illustlogic(イラストロジック)です。
 
 
-### 数独
+## 数独
 
 入力するファイルは、
 ・はじめの行に"ブロックの行サイズ ブロックの列サイズ"
@@ -40,7 +41,7 @@ PuzzleTypeは、sudoku(数独)、illustlogic(イラストロジック)です。
     7 4 0 0 9 0 0 5 3
 
 
-### イラストロジック
+## イラストロジック
 
 入力するファイルは、
 ・はじめの行に"行サイズ 列サイズ"
